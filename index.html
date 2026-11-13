@@ -55,7 +55,14 @@ const kap = () => ALLE.find(k => k.id === state.kapitel);
 const RUNDE = 12; // Quizfragen pro Runde
 const sterne = p => p >= 10 ? 3 : p >= 7 ? 2 : p >= 4 ? 1 : 0;
 const sternText = n => '⭐'.repeat(n) + '☆'.repeat(3 - n);
-const mische = a => [...a].sort(() => Math.random() - .5);
+function mische(a) { // Fisher-Yates: jede Reihenfolge gleich wahrscheinlich
+  const b = [...a];
+  for (let i = b.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [b[i], b[j]] = [b[j], b[i]];
+  }
+  return b;
+}
 
 function laden() {
   try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; }
