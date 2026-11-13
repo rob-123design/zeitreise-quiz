@@ -43,6 +43,7 @@ Alle Fragen stehen in `fragen.js`. Eine neue Frage kommt in die Liste `fragen` d
 - `antworten`: genau 4 verschiedene Antworten. Die richtige zuerst, dann ist `richtig: 0`. Die App mischt beim Anzeigen.
 - `level`: 1 = leicht, 2 = mittel, 3 = schwer.
 - `info`: kurze Erklärung, höchstens 160 Zeichen.
+- Neue Fragen erscheinen automatisch auch im Kapitel „Alleswisser“, dem Mix aus allen Epochen.
 
 Danach `pruefe.js` laufen lassen (Anleitung steht oben in `pruefe.js`), im Ordner darüber:
 

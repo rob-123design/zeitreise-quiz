@@ -48,7 +48,10 @@ const state = window.state = {
 };
 const KEY = 'zeitreise';
 
-const kap = () => KAPITEL.find(k => k.id === state.kapitel);
+// Alleswisser: Mix aus allen Kapiteln, berechnet aus fragen.js. Jede Frage merkt sich das Emoji ihrer Epoche.
+const ALLE = [...KAPITEL, { id: 'alles', titel: 'Alleswisser', emoji: '🧠',
+  fragen: KAPITEL.flatMap(k => k.fragen.map(f => ({ ...f, emoji: k.emoji }))) }];
+const kap = () => ALLE.find(k => k.id === state.kapitel);
 const sterne = p => p >= 7 ? 3 : p >= 5 ? 2 : p >= 3 ? 1 : 0;
 const sternText = n => '⭐'.repeat(n) + '☆'.repeat(3 - n);
 const mische = a => [...a].sort(() => Math.random() - .5);
@@ -139,6 +142,7 @@ function frageHtml() {
   const nr = state.screen === 'quiz'
     ? `Frage ${state.punkte + state.falsch.length + (beantwortet ? 0 : 1)}/8`
     : `Einstufung ${state.verlauf.length + (beantwortet ? 0 : 1)}/3`;
+  const epoche = f.emoji ? ` · ${f.emoji}` : '';
   const knoepfe = q.antworten.map((a, k) => {
     let klasse = '', zeichen = '';
     if (beantwortet && a === richtig) [klasse, zeichen] = ['ok', '✅ '];
@@ -147,7 +151,7 @@ function frageHtml() {
     return `<button class="antwort ${klasse}"${gesperrt} onclick="antwort(${k})">${zeichen}${a}</button>`;
   }).join('');
   const nachher = beantwortet ? `<p class="info">💡 ${f.info}</p><button onclick="weiter()">Weiter ➜</button>` : '';
-  return `<p>${nr}</p><h2>${f.text}</h2>${knoepfe}${nachher}`;
+  return `<p>${nr}${epoche}</p><h2>${f.text}</h2>${knoepfe}${nachher}`;
 }
 
 function vergleichText() {
@@ -170,7 +174,7 @@ function ergebnisHtml() {
 
 function startHtml() {
   const daten = laden();
-  const kacheln = KAPITEL.map(k => {
+  const kacheln = ALLE.map(k => {
     const d = daten[k.id];
     return `<button class="kachel" data-kapitel="${k.id}" onclick="oeffne('${k.id}')">
       <span class="emoji">${k.emoji}</span>${k.titel}
