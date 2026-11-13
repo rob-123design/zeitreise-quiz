@@ -4,7 +4,7 @@ Quiz-App zum Lernen für Geschichte, Klasse 5/6. Läuft im Browser und lässt si
 
 ## Auf dem Mac testen
 
-1. Terminal öffnen und in diesen Ordner wechseln:
+1. Terminal öffnen, in den Projektordner wechseln (der Ordner, der `app` enthält) und den Server im Ordner `app` starten:
    ```sh
    cd app
    python3 -m http.server 8000
