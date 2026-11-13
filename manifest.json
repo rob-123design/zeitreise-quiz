@@ -1,0 +1,12 @@
+{
+  "name": "Zeitreise-Quiz",
+  "short_name": "Zeitreise",
+  "lang": "de",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#fff8e7",
+  "theme_color": "#e8590c",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

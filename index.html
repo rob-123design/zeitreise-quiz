@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#e8590c">
+<title>Zeitreise-Quiz</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg">
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font: 20px/1.4 system-ui, sans-serif; background: #fff8e7; color: #2b2118;
+    overflow-wrap: anywhere;
+  }
+  main { max-width: 600px; margin: 0 auto; padding: 16px; }
+  h1, h2 { margin: 8px 0 16px; }
+  .kopf { display: flex; justify-content: space-between; align-items: center; min-height: 48px; }
+  button {
+    display: block; width: 100%; min-height: 56px; margin: 10px 0; padding: 12px 16px;
+    font: inherit; font-weight: 600; border: 0; border-radius: 14px; cursor: pointer;
+    background: #e8590c; color: #fff; box-shadow: 0 4px 0 #a63e06;
+  }
+  button:disabled { cursor: default; opacity: 1; }
+  .home { width: auto; min-height: 48px; margin: 0; background: #fff; color: inherit; box-shadow: 0 3px 0 #ddd; }
+  .serie { font-size: 24px; font-weight: 700; }
+  .kacheln { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .kachel { margin: 0; background: #1c7ed6; box-shadow: 0 4px 0 #1259a0; }
+  .kachel .emoji { display: block; font-size: 40px; }
+  .kachel small { display: block; font-weight: 400; }
+  .antwort { background: #7048e8; box-shadow: 0 4px 0 #4c2fb0; text-align: left; }
+  .ok { background: #2f9e44; box-shadow: 0 4px 0 #1f6e2f; }
+  .no { background: #e03131; box-shadow: 0 4px 0 #a51d1d; }
+  .info { background: #fff; padding: 12px 16px; border-radius: 14px; }
+  .gross { font-size: 48px; text-align: center; margin: 8px 0; }
+  details { background: #fff; border-radius: 14px; padding: 12px 16px; margin: 10px 0; }
+  summary { font-weight: 600; cursor: pointer; }
+</style>
+</head>
+<body>
+<main id="app"></main>
+<script src="fragen.js"></script>
+<script>
+const state = window.state = {
+  screen: 'start', kapitel: null, selbst: null, einstufung: null, level: 1,
+  benutzt: [], verlauf: [], punkte: 0, serie: 0, falsch: [],
+  frage: null // aktuelle Frage: {index, ziel, antworten (gemischt), gewaehlt}
+};
+const KEY = 'zeitreise';
+
+const kap = () => KAPITEL.find(k => k.id === state.kapitel);
+const sterne = p => p >= 7 ? 3 : p >= 5 ? 2 : p >= 3 ? 1 : 0;
+const sternText = n => '⭐'.repeat(n) + '☆'.repeat(3 - n);
+const mische = a => [...a].sort(() => Math.random() - .5);
+
+function laden() {
+  try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; }
+}
+
+function speichern(id, punkte) {
+  try {
+    const daten = laden(), alt = daten[id] || { best: 0, sterne: 0 };
+    daten[id] = { best: Math.max(alt.best, punkte), sterne: Math.max(alt.sterne, sterne(punkte)) };
+    localStorage.setItem(KEY, JSON.stringify(daten));
+  } catch (e) { /* Speichern nicht möglich, App läuft trotzdem */ }
+}
+
+// Unbenutzte Frage aus dem Ziel-Level, sonst aus dem nächsten Level (Abstand 1 erst niedriger, dann Abstand 2)
+function zieh() {
+  const F = kap().fragen, z = state.level, frei = j => !state.benutzt.includes(j);
+  const L = [z, z - 1, z + 1, z - 2, z + 2].find(l => F.some((f, j) => f.level === l && frei(j)));
+  const kandidaten = F.map((f, j) => j).filter(j => F[j].level === L && frei(j));
+  const index = kandidaten[Math.floor(Math.random() * kandidaten.length)];
+  state.benutzt.push(index);
+  state.frage = { index, ziel: z, antworten: mische(F[index].antworten), gewaehlt: null };
+}
+
+function neuerDurchlauf() {
+  Object.assign(state, { benutzt: [], verlauf: [], punkte: 0, serie: 0, falsch: [] });
+}
+
+function zeige(screen) {
+  state.screen = screen;
+  render();
+  window.scrollTo(0, 0);
+}
+
+function oeffne(id) {
+  state.kapitel = id;
+  zeige('menu');
+}
+
+function selbst(n) {
+  neuerDurchlauf();
+  Object.assign(state, { selbst: n, level: n, einstufung: null });
+  zieh();
+  zeige('einstufung');
+}
+
+function losGehts() {
+  zieh();
+  zeige('quiz');
+}
+
+function nochmal() {
+  neuerDurchlauf();
+  zieh();
+  zeige('quiz');
+}
+
+function antwort(k) {
+  const q = state.frage, f = kap().fragen[q.index];
+  if (q.gewaehlt !== null) return;
+  const richtig = q.antworten[k] === f.antworten[f.richtig];
+  q.gewaehlt = k;
+  state.verlauf.push({ index: q.index, ziel: q.ziel, richtig });
+  state.serie = richtig ? state.serie + 1 : 0;
+  state.level = Math.min(3, Math.max(1, state.level + (richtig ? 1 : -1)));
+  if (state.screen === 'quiz') richtig ? state.punkte++ : state.falsch.push(q.index);
+  render();
+}
+
+function weiter() {
+  if (state.screen === 'einstufung' && state.verlauf.length === 3) {
+    state.einstufung = state.level;
+    return zeige('vergleich');
+  }
+  if (state.screen === 'quiz' && state.punkte + state.falsch.length === 8) {
+    speichern(state.kapitel, state.punkte);
+    return zeige('ergebnis');
+  }
+  zieh();
+  render();
+}
+
+function frageHtml() {
+  const q = state.frage, f = kap().fragen[q.index], beantwortet = q.gewaehlt !== null;
+  const richtig = f.antworten[f.richtig];
+  const nr = state.screen === 'quiz'
+    ? `Frage ${state.punkte + state.falsch.length + (beantwortet ? 0 : 1)}/8`
+    : `Einstufung ${state.verlauf.length + (beantwortet ? 0 : 1)}/3`;
+  const knoepfe = q.antworten.map((a, k) => {
+    let klasse = '', zeichen = '';
+    if (beantwortet && a === richtig) [klasse, zeichen] = ['ok', '✅ '];
+    else if (beantwortet && k === q.gewaehlt) [klasse, zeichen] = ['no', '❌ '];
+    const gesperrt = beantwortet ? ' disabled' : '';
+    return `<button class="antwort ${klasse}"${gesperrt} onclick="antwort(${k})">${zeichen}${a}</button>`;
+  }).join('');
+  const nachher = beantwortet ? `<p class="info">💡 ${f.info}</p><button onclick="weiter()">Weiter ➜</button>` : '';
+  return `<p>${nr}</p><h2>${f.text}</h2>${knoepfe}${nachher}`;
+}
+
+function vergleichText() {
+  if (state.einstufung > state.selbst) return 'Du weißt mehr als du denkst! 💪';
+  if (state.einstufung === state.selbst) return 'Deine Einschätzung passt! 👍';
+  return 'Da üben wir noch ein bisschen! 🙂';
+}
+
+function ergebnisHtml() {
+  const p = state.punkte, F = kap().fragen;
+  const zeile = f => `<li>${f.text}<br>✅ <b>${f.antworten[f.richtig]}</b></li>`;
+  const fehler = state.falsch.length
+    ? '<ul>' + state.falsch.map(i => zeile(F[i])).join('') + '</ul>'
+    : '<p>Alles richtig! 🎉</p>';
+  return `<p class="gross">${p}/8</p><p class="gross">${sternText(sterne(p))}</p>
+    <p>Einstufung: Level ${state.einstufung} · Ende: Level ${state.level}</p>
+    <h2>Das übst du noch:</h2>${fehler}
+    <button onclick="nochmal()">Nochmal</button><button onclick="zeige('start')">Anderes Kapitel</button>`;
+}
+
+function startHtml() {
+  const daten = laden();
+  const kacheln = KAPITEL.map(k => {
+    const d = daten[k.id];
+    return `<button class="kachel" data-kapitel="${k.id}" onclick="oeffne('${k.id}')">
+      <span class="emoji">${k.emoji}</span>${k.titel}
+      <small>${sternText(d ? d.sterne : 0)}</small><small>Best: ${d ? d.best + '/8' : '–'}</small></button>`;
+  }).join('');
+  return `<h1>⏳ Zeitreise-Quiz</h1><p>Wähle ein Kapitel:</p><div class="kacheln">${kacheln}</div>`;
+}
+
+function render() {
+  const s = state.screen, k = state.kapitel && kap();
+  const kopf = s === 'start' ? '' : `<div class="kopf"><button class="home" onclick="zeige('start')">🏠</button>
+    ${s === 'einstufung' || s === 'quiz' ? `<span class="serie">🔥 ${state.serie}</span>` : ''}</div>`;
+  const inhalt = {
+    start: startHtml,
+    menu: () => `<h2>${k.emoji} ${k.titel}</h2>
+      <button onclick="zeige('lernen')">Lernen</button><button onclick="zeige('selbst')">Quiz</button>`,
+    lernen: () => `<h2>📖 ${k.titel}</h2><p>Tippe auf eine Frage, um die Antwort zu sehen.</p>` +
+      [...k.fragen].sort((a, b) => a.level - b.level).map(f =>
+        `<details><summary>${f.text}</summary><p>✅ <b>${f.antworten[f.richtig]}</b></p><p>${f.info}</p></details>`
+      ).join(''),
+    selbst: () => `<h2>Wie gut kennst du dich bei „${k.titel}“ aus?</h2>
+      <button onclick="selbst(1)">Kenne ich kaum 😕</button><button onclick="selbst(2)">etwas 🙂</button>
+      <button onclick="selbst(3)">gut 😎</button>`,
+    einstufung: frageHtml,
+    vergleich: () => `<p class="gross">🔎</p><h2>${vergleichText()}</h2>
+      <p>Du startest jetzt mit Level ${state.level}.</p><button onclick="losGehts()">Los geht's</button>`,
+    quiz: frageHtml,
+    ergebnis: ergebnisHtml
+  }[s]();
+  document.getElementById('app').innerHTML = kopf + inhalt;
+}
+
+render();
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+</script>
+</body>
+</html>
